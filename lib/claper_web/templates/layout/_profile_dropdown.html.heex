@@ -20,7 +20,7 @@
               aria-haspopup="true"
             >
               <span class="sr-only">Open user menu</span>
-              <span class="hidden md:block"><%= @user.email %></span>
+              <span class="hidden md:block">{@user.email}</span>
               <svg
                 xmlns="http://www.w3.org/2000/svg"
                 viewBox="0 0 20 20"
@@ -38,13 +38,13 @@
 
           <div
             id="profile-dropdown"
-            class="hidden origin-top-right absolute right-0 mt-2 w-48 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 divide-y divide-gray-200 focus:outline-none"
+            class="hidden origin-top-right absolute right-0 mt-2 w-48 rounded-md shadow-lg bg-white ring-1 ring-black/5 divide-y divide-gray-200 focus:outline-hidden"
             role="menu"
             aria-orientation="vertical"
             aria-labelledby="user-menu-button"
             tabindex="-1"
           >
-            <%= render("_user_menu.html", conn: @conn, user: @user) %>
+            {render("_user_menu.html", conn: @conn, user: @user)}
           </div>
         </div>
       </div>

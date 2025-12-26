@@ -109,7 +109,7 @@ defmodule ClaperWeb.EventLive.Show do
   defp check_leader(%{assigns: %{current_user: current_user} = _assigns} = socket, event)
        when is_map(current_user) do
     is_leader =
-      current_user.id == event.user_id || Claper.Events.leaded_by?(current_user.email, event)
+      current_user.id == event.user_id || Claper.Events.led_by?(current_user.email, event)
 
     socket |> assign(:is_leader, is_leader)
   end
@@ -187,7 +187,7 @@ defmodule ClaperWeb.EventLive.Show do
   end
 
   @impl true
-  def handle_info({:event_terminated, _event}, socket) do
+  def handle_info({:event_terminated, _event_uuid}, socket) do
     {:noreply,
      socket
      |> put_flash(:error, gettext("This event has been terminated"))
@@ -293,10 +293,6 @@ defmodule ClaperWeb.EventLive.Show do
   def handle_info({:form_updated, %Claper.Forms.Form{enabled: true} = form}, socket) do
     {:noreply,
      socket
-     |> update(:current_interaction, fn _current_interaction -> nil end)}
-
-    {:noreply,
-     socket
      |> load_current_interaction(form, true)}
   end
 
@@ -319,17 +315,6 @@ defmodule ClaperWeb.EventLive.Show do
     {:noreply,
      socket
      |> update(:current_interaction, fn _current_interaction -> nil end)}
-  end
-
-  @impl true
-  def handle_info({:quiz_updated, %Claper.Quizzes.Quiz{enabled: true} = quiz}, socket) do
-    {:noreply,
-     socket
-     |> load_current_interaction(quiz, true)}
-  end
-
-  @impl true
-  def handle_info({:quiz_deleted, %Claper.Quizzes.Quiz{enabled: true}}, socket) do
   end
 
   @impl true
@@ -708,7 +693,7 @@ defmodule ClaperWeb.EventLive.Show do
       )
       when is_map(current_user) do
     case Claper.Quizzes.submit_quiz(
-           current_user.id,
+           current_user,
            opts,
            socket.assigns.current_interaction.id
          ) do

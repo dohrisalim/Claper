@@ -1,12 +1,8 @@
 defmodule ClaperWeb.EventLive.Manage do
   use ClaperWeb, :live_view
 
+  alias Claper.{Embeds, Forms, Polls, Presentations, Quizzes}
   alias ClaperWeb.Presence
-  alias Claper.Polls
-  alias Claper.Forms
-  alias Claper.Embeds
-  # Add this line
-  alias Claper.Quizzes
 
   @impl true
   def mount(%{"code" => code}, session, socket) do
@@ -39,6 +35,7 @@ defmodule ClaperWeb.EventLive.Manage do
 
       socket =
         socket
+        |> assign(:interaction_modal, false)
         |> assign(:settings_modal, false)
         |> assign(:attendees_nb, 1)
         |> assign(:event, event)
@@ -74,7 +71,7 @@ defmodule ClaperWeb.EventLive.Manage do
   end
 
   defp leader?(%{assigns: %{current_user: current_user}} = _socket, event) do
-    Claper.Events.leaded_by?(current_user.email, event) || event.user.id == current_user.id
+    Claper.Events.led_by?(current_user.email, event) || event.user.id == current_user.id
   end
 
   defp leader?(_socket, _event), do: false
@@ -588,6 +585,23 @@ defmodule ClaperWeb.EventLive.Manage do
   @impl true
   def handle_event(
         "checked",
+        %{"key" => "show_attendee_count", "value" => value},
+        %{assigns: %{event: _event, state: state}} = socket
+      ) do
+    {:ok, new_state} =
+      Claper.Presentations.update_presentation_state(
+        state,
+        %{
+          :show_attendee_count => value
+        }
+      )
+
+    {:noreply, socket |> assign(:state, new_state)}
+  end
+
+  @impl true
+  def handle_event(
+        "checked",
         %{"key" => "join_screen_visible", "value" => value},
         %{assigns: %{state: state}} = socket
       ) do
@@ -762,18 +776,26 @@ defmodule ClaperWeb.EventLive.Manage do
   end
 
   @impl true
-  def handle_params(params, _url, socket) do
-    {:noreply, apply_action(socket, socket.assigns.live_action, params)}
+  def handle_event(
+        "toggle-interaction-modal",
+        _params,
+        %{assigns: %{interaction_modal: _interaction_modal = true}} = socket
+      ) do
+    {:noreply, socket |> push_navigate(to: ~p"/e/#{socket.assigns.event.code}/manage")}
   end
 
-  def toggle_add_modal(js \\ %JS{}) do
-    js
-    |> JS.toggle(
-      to: "#add-modal",
-      out: "animate__animated animate__fadeOut",
-      in: "animate__animated animate__fadeIn"
-    )
-    |> JS.push("maybe-redirect", target: "#add-modal")
+  @impl true
+  def handle_event(
+        "toggle-interaction-modal",
+        _params,
+        %{assigns: %{interaction_modal: _interaction_modal}} = socket
+      ) do
+    {:noreply, socket |> assign(:interaction_modal, true)}
+  end
+
+  @impl true
+  def handle_params(params, _url, socket) do
+    {:noreply, apply_action(socket, socket.assigns.live_action, params)}
   end
 
   def toggle_settings_modal(js \\ %JS{}) do
@@ -802,6 +824,7 @@ defmodule ClaperWeb.EventLive.Manage do
 
     socket
     |> assign(:create, "poll")
+    |> assign(:interaction_modal, true)
     |> assign(:create_action, :edit)
     |> assign(:poll, poll)
   end
@@ -834,6 +857,7 @@ defmodule ClaperWeb.EventLive.Manage do
 
     socket
     |> assign(:create, "form")
+    |> assign(:interaction_modal, true)
     |> assign(:create_action, :edit)
     |> assign(:form, form)
   end
@@ -843,6 +867,7 @@ defmodule ClaperWeb.EventLive.Manage do
 
     socket
     |> assign(:create, "embed")
+    |> assign(:interaction_modal, true)
     |> assign(:create_action, :edit)
     |> assign(:embed, embed)
   end
@@ -873,6 +898,7 @@ defmodule ClaperWeb.EventLive.Manage do
 
     socket
     |> assign(:create, "quiz")
+    |> assign(:interaction_modal, true)
     |> assign(:create_action, :edit)
     |> assign(:quiz, quiz)
   end

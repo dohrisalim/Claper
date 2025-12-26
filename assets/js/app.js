@@ -13,26 +13,56 @@ import airdatepickerLocaleDe from "air-datepicker/locale/de";
 import airdatepickerLocaleEs from "air-datepicker/locale/es";
 import airdatepickerLocaleNl from "air-datepicker/locale/nl";
 import airdatepickerLocaleIt from "air-datepicker/locale/it";
+import airdatepickerLocaleHu from "air-datepicker/locale/hu";
 import "moment/locale/de";
 import "moment/locale/fr";
 import "moment/locale/es";
 import "moment/locale/nl";
 import "moment/locale/it";
+import "moment/locale/hu";
+import "moment/locale/lv";
 import QRCodeStyling from "qr-code-styling";
 import { Presenter } from "./presenter";
 import { Manager } from "./manager";
 import Split from "split-grid";
+import CustomHooks from "./hooks";
 import { TourGuideClient } from "@sjmc11/tourguidejs/src/Tour";
+import "./admin-charts.js";
 window.moment = moment;
 
-const supportedLocales = ["en", "fr", "de", "es", "nl", "it"];
+// Get supported locales from backend configuration or fallback to default list
+const supportedLocales = window.claperConfig?.supportedLocales || [
+  "en",
+  "fr",
+  "de",
+  "es",
+  "nl",
+  "it",
+  "hu",
+  "lv",
+];
+
+const airdatePickrSupportedLocales = window.claperConfig?.supportedLocales || [
+  "en",
+  "fr",
+  "de",
+  "es",
+  "nl",
+  "it",
+  "hu",
+];
 
 var locale =
   document.querySelector("html").getAttribute("lang") ||
   navigator.language.split("-")[0];
 
+var airdatepickrLocale = locale;
+
 if (!supportedLocales.includes(locale)) {
   locale = "en";
+}
+if (!airdatePickrSupportedLocales.includes(locale)) {
+  airdatepickrLocale = "en";
 }
 
 window.moment.locale("en");
@@ -40,13 +70,14 @@ window.moment.locale(locale);
 window.Alpine = Alpine;
 Alpine.start();
 
-let airdatepickerLocale = {
+let airdatePickrLocales = {
   en: airdatepickerLocaleEn,
   fr: airdatepickerLocaleFr,
   de: airdatepickerLocaleDe,
   es: airdatepickerLocaleEs,
   nl: airdatepickerLocaleNl,
   it: airdatepickerLocaleIt,
+  hu: airdatepickerLocaleHu,
 };
 let csrfToken = document
   .querySelector("meta[name='csrf-token']")
@@ -69,8 +100,8 @@ Hooks.EmbeddedBanner = {
 Hooks.TourGuide = {
   mounted() {
     this.triggerDiv = document.querySelector(this.el.dataset.btnTrigger);
-    this.btnTrigger = this.triggerDiv.querySelector('.open');
-    this.closeBtnTrigger = this.triggerDiv.querySelector('.close');
+    this.btnTrigger = this.triggerDiv.querySelector(".open");
+    this.closeBtnTrigger = this.triggerDiv.querySelector(".close");
 
     this.tour = new TourGuideClient({
       nextLabel: this.el.dataset.nextLabel,
@@ -105,7 +136,7 @@ Hooks.TourGuide = {
   destroyed() {
     this.btnTrigger.removeEventListener("click", () => {
       this.startTour();
-    }); 
+    });
     this.closeBtnTrigger.removeEventListener("click", () => {
       this.triggerDiv.classList.add("hidden");
       this.tour.finishTour(true, this.el.dataset.group);
@@ -200,26 +231,36 @@ Hooks.Scroll = {
 Hooks.ScrollIntoDiv = {
   mounted() {
     let useParent = this.el.dataset.useParent === "true";
-    this.scrollElement = this.el.dataset.useParent === "true" ? this.el.parentElement : this.el;
+    this.scrollElement =
+      this.el.dataset.useParent === "true" ? this.el.parentElement : this.el;
     this.checkIfAtBottom();
     this.scrollToBottom(true);
     this.handleEvent("scroll", () => this.scrollToBottom());
     this.scrollElement.addEventListener("scroll", () => this.checkIfAtBottom());
   },
   checkIfAtBottom() {
-    this.isAtBottom = this.scrollElement.scrollHeight - this.scrollElement.scrollTop - this.scrollElement.clientHeight <= 30;
+    this.isAtBottom =
+      this.scrollElement.scrollHeight -
+        this.scrollElement.scrollTop -
+        this.scrollElement.clientHeight <=
+      30;
   },
   scrollToBottom(force = false) {
     if (force || this.isAtBottom) {
-      this.scrollElement.scrollTo({ top: this.scrollElement.scrollHeight, behavior: "smooth" });
+      this.scrollElement.scrollTo({
+        top: this.scrollElement.scrollHeight,
+        behavior: "smooth",
+      });
     }
   },
   updated() {
     this.scrollToBottom();
   },
   destroyed() {
-    this.scrollElement.removeEventListener("scroll", () => this.checkIfAtBottom());
-  }
+    this.scrollElement.removeEventListener("scroll", () =>
+      this.checkIfAtBottom(),
+    );
+  },
 };
 
 Hooks.NicknamePicker = {
@@ -243,7 +284,7 @@ Hooks.NicknamePicker = {
   clicked(e) {
     let nickname = prompt(
       this.el.dataset.prompt,
-      localStorage.getItem("nickname") || ""
+      localStorage.getItem("nickname") || "",
     );
 
     if (nickname) {
@@ -263,6 +304,19 @@ Hooks.EmptyNickname = {
   clicked(e) {
     localStorage.removeItem("nickname");
   },
+};
+
+Hooks.SearchableSelect = {
+  mounted() {
+    this.handleEvent("update_hidden_field", (payload) => {
+      if (payload.id === this.el.id) {
+        this.el.value = payload.value;
+        // Trigger a change event to update the form
+        const event = new Event('input', { bubbles: true });
+        this.el.dispatchEvent(event);
+      }
+    });
+  }
 };
 
 Hooks.PostForm = {
@@ -353,7 +407,7 @@ Hooks.Pickr = {
         const utc = moment(date).utc().format("YYYY-MM-DDTHH:mm:ss");
         utcTime.value = utc;
       },
-      locale: airdatepickerLocale[locale],
+      locale: airdatePickrLocales[airdatepickrLocale],
     });
   },
   updated() {},
@@ -392,7 +446,7 @@ Hooks.OpenPresenter = {
     window.open(
       this.el.dataset.url,
       "newwindow",
-      "width=" + window.screen.width + ",height=" + window.screen.height
+      "width=" + window.screen.width + ",height=" + window.screen.height,
     );
   },
   mounted() {
@@ -417,7 +471,12 @@ Hooks.GlobalReacts = {
         const container = document.createElement("div");
         container.innerHTML = svgContent;
         const svgElement = container.firstChild;
-        svgElement.classList.add("react-animation", "absolute", "transform", "opacity-0");
+        svgElement.classList.add(
+          "react-animation",
+          "absolute",
+          "transform",
+          "opacity-0",
+        );
         svgElement.classList.add(...this.el.className.split(" "));
         this.el.appendChild(svgElement);
       }
@@ -429,15 +488,17 @@ Hooks.GlobalReacts = {
 
   preloadSVGs() {
     const svgTypes = ["heart", "hundred", "clap", "raisehand"];
-    svgTypes.forEach(type => {
+    svgTypes.forEach((type) => {
       fetch(`/images/icons/${type}.svg`)
-        .then(response => response.text())
-        .then(svgContent => {
+        .then((response) => response.text())
+        .then((svgContent) => {
           this.svgCache[type] = svgContent;
         })
-        .catch(error => console.error(`Error loading SVG for ${type}:`, error));
+        .catch((error) =>
+          console.error(`Error loading SVG for ${type}:`, error),
+        );
     });
-  }
+  },
 };
 Hooks.JoinEvent = {
   mounted() {
@@ -570,35 +631,61 @@ Hooks.Dropdown = {
   },
 };
 
-let Uploaders = {};
-
-Uploaders.S3 = function (entries, onViewError) {
-  entries.forEach((entry) => {
-    let formData = new FormData();
-    let { url, fields } = entry.meta;
-    Object.entries(fields).forEach(([key, val]) => formData.append(key, val));
-    formData.append("file", entry.file);
-    let xhr = new XMLHttpRequest();
-    onViewError(() => xhr.abort());
-    xhr.onload = () =>
-      xhr.status === 204 ? entry.progress(100) : entry.error();
-    xhr.onerror = () => entry.error();
-    xhr.upload.addEventListener("progress", (event) => {
-      if (event.lengthComputable) {
-        let percent = Math.round((event.loaded / event.total) * 100);
-        if (percent < 100) {
-          entry.progress(percent);
-        }
-      }
+Hooks.AdminChart = {
+  mounted() {
+    const chartType = this.el.dataset.chartType;
+    const canvasId = this.el.querySelector('canvas').id;
+    const data = JSON.parse(this.el.dataset.chartData);
+    
+    if (chartType === 'users') {
+      window.AdminCharts.createUsersChart(canvasId, data);
+    } else if (chartType === 'events') {
+      window.AdminCharts.createEventsChart(canvasId, data);
+    }
+    
+    this.handleEvent("update_chart", (newData) => {
+      window.AdminCharts.updateChart(canvasId, newData);
     });
-
-    xhr.open("POST", url, true);
-    xhr.send(formData);
-  });
+  },
+  
+  updated() {
+    const chartType = this.el.dataset.chartType;
+    const canvasId = this.el.querySelector('canvas').id;
+    const data = JSON.parse(this.el.dataset.chartData);
+    
+    if (chartType === 'users') {
+      window.AdminCharts.createUsersChart(canvasId, data);
+    } else if (chartType === 'events') {
+      window.AdminCharts.createEventsChart(canvasId, data);
+    }
+  },
+  
+  destroyed() {
+    const canvasId = this.el.querySelector('canvas').id;
+    window.AdminCharts.destroyChart(canvasId);
+  }
 };
 
+Hooks.CSVDownloader = {
+  mounted() {
+    this.handleEvent("download_csv", ({ filename, content }) => {
+      const blob = new Blob([content], { type: 'text/csv' });
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      window.URL.revokeObjectURL(url);
+    });
+  }
+};
+
+// Merge our custom hooks with the existing hooks
+Object.assign(Hooks, CustomHooks);
+
 let liveSocket = new LiveSocket("/live", Socket, {
-  uploaders: Uploaders,
   params: {
     _csrf_token: csrfToken,
     tz: Intl.DateTimeFormat().resolvedOptions().timeZone,
@@ -628,7 +715,6 @@ window.addEventListener("phx:page-loading-stop", (info) => {
   topBarScheduled = undefined;
   topbar.hide();
 });
-
 
 const onlineUserTemplate = function (user) {
   return `
